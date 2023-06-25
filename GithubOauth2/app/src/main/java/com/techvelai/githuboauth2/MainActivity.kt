@@ -42,9 +42,11 @@ import net.openid.appauth.browser.BrowserAllowList
 import net.openid.appauth.browser.VersionedBrowserMatcher
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.security.MessageDigest
 import java.security.SecureRandom
+import kotlin.IllegalStateException
 
 class MainActivity : ComponentActivity() {
 
@@ -252,14 +254,20 @@ class MainActivity : ComponentActivity() {
     private fun signOutWithoutRedirect() {
         val client = OkHttpClient()
         val request = Request.Builder()
-            .url(Constants.URL_LOGOUT + authState.idToken)
+            .post("".toRequestBody())
+            .header("Content-type", "application/x-www-form-urlencoded")
+            .url(Constants.URL_LOGOUT + authState.accessToken)
             .build()
 
         try {
             lifecycleScope.launch {
                 withContext(Dispatchers.IO) {
-                    client.newCall(request).execute()
-                    deleteState()
+                    val result = client.newCall(request).execute()
+                    if (result.code == 200) {
+                        deleteState()
+                    } else {
+                        throw IllegalStateException(result.body?.string())
+                    }
                 }
             }
         } catch (e: Exception) {
